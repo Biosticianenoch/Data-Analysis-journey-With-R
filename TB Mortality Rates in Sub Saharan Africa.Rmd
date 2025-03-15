@@ -1,0 +1,158 @@
+---
+title: "TB MORTALITY TRENDS IN SUB SAHARAN AFRICA"
+author: "Enock Bereka"
+date: "2025-02-14"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Required Libraries
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)    # Data manipulation and visualization
+library(Epi)          # Age-Period-Cohort modeling
+library(apc)          # Alternative APC analysis
+library(ggplot2)      # Additional plotting functions
+library(viridis)      # Color palette for heatmaps
+library(MASS)         # For glm.nb (negative binomial regression if overdispersion is present)
+```
+
+## Load and inspect the Data
+```{r warning=FALSE, message=FALSE}
+tb_data <-  read_csv("C:/Users/PC/OneDrive/Desktop/Data Science/Datasets/Datasets/simulated_tb_mortality_SSA_no_cohort.csv")
+glimpse(tb_data)
+anyNA(tb_data)
+sum(duplicated(tb_data))
+```
+
+## Compute the Cohort Variable
+```{r warning=FALSE, message=FALSE}
+tb_data <- tb_data %>%
+  mutate(Age = factor(Age, ordered = TRUE), # Convert Age to ordered factor
+         Period = as.numeric(Period),      # Ensure Period is numeric
+         Cohort = Period - as.numeric(Age)) # Compute Cohort
+```
+
+## Exploratory Data Analysis
+```{r warning=FALSE, message=FALSE}
+summary(tb_data)
+ggplot(tb_data, aes(x = as.numeric(Age), y = Mortality_Rate))+
+  geom_point(alpha = 0.5, color = "red")+
+  geom_smooth(method = "loess")+
+  theme_classic()+
+  labs(title = "Age vs Mortality Rates in Sub Saharan Africa", x = "Age",
+       y = "Mortality Rate",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Visualizing Mortality Trends Over Time
+```{r warning=FALSE, message=FALSE}
+ggplot(tb_data, aes(x = Period, y = Mortality_Rate))+
+  geom_line(linewidth = 1.1, color = "red")+
+  theme_minimal()+
+  geom_smooth(method = "lm")+
+  labs(title = "TB Mortality Trends in Sub Saharan Africa ",
+       x = "Year",
+       y = "Mortality Rate per 100,000",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Visualizing Mortality Trends Over Time across Age groups
+```{r warning=FALSE, message=FALSE}
+ggplot(tb_data, aes(x = Period, y = Mortality_Rate, color = as.factor(Age))) +
+  geom_line(linewidth = 1.1) +
+  theme_minimal() +
+  labs(title = "TB Mortality Trends in Sub Saharan Africa across Age groups",
+       x = "Year",
+       y = "Mortality Rate per 100,000",
+       color = "Age Group",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Visualizing Mortality Trends across Cohorts
+```{r warning=FALSE, message=FALSE}
+ggplot(tb_data, aes(x = Cohort, y = Mortality_Rate))+
+  geom_line(linewidth = 1, color = "red")+
+  theme_minimal()+
+  geom_smooth(method = "lm")+
+  labs(title = "TB Mortality Trends in Sub Saharan Africa across Cohorts",
+       x = "Birth Year",
+       y = "Mortality Rate per 100,000",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Age-Period-Cohort Model using Poisson Regression
+```{r warning=FALSE, message=FALSE}
+apc_model <- glm(Mortality_Rate ~ factor(Age) + factor(Period) + factor(Cohort), 
+                 data = tb_data, 
+                 family = poisson)
+```
+
+## Checking for Overdispersion 
+```{r warning=FALSE, message=FALSE}
+dispersion <- sum(residuals(apc_model, type = "pearson")^2) / df.residual(apc_model)
+```
+
+## If dispersion is detectes i use Negative Binomial Model
+```{r warning=FALSE, message=FALSE}
+if (dispersion > 1.5) {
+  cat("Overdispersion detected (dispersion =", dispersion, "). Using Negative Binomial Regression.\n")
+  apc_model <- glm.nb(Mortality_Rate ~ factor(Age) + factor(Period) + factor(Cohort), 
+                      data = tb_data)
+  summary(apc_model)
+}
+```
+
+## Visualizing Age, Period, and Cohort Effects
+## Extract and plot the APC effects
+
+## Age Effects
+```{r warning=FALSE, message=FALSE}
+age_effects <- coef(apc_model)[grep("Age", names(coef(apc_model)))]
+age_df <- data.frame(Age = levels(tb_data$Age)[-1], Effect = age_effects)
+ggplot(age_df, aes(x = Age, y = Effect)) +
+  geom_point(size = 3, color = "blue") +
+  geom_line(group = 1, color = "blue", linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Age Effect on TB Mortality in Sub Saharan Africa", x = "Age Group", y = "Effect Size",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Period Effects
+```{r warning=FALSE, message=FALSE}
+period_effects <- coef(apc_model)[grep("Period", names(coef(apc_model)))]
+period_df <- data.frame(Period = unique(tb_data$Period)[-1], Effect = period_effects)
+ggplot(period_df, aes(x = Period, y = Effect)) +
+  geom_point(size = 3, color = "red") +
+  geom_line(group = 1, color = "red", linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Period Effect on TB Mortality in Sub Saharan Africa", x = "Period", y = "Effect Size",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Cohort Effects
+```{r warning=FALSE, message=FALSE}
+cohort_effects <- coef(apc_model)[grep("Cohort", names(coef(apc_model)))]
+cohort_df <- data.frame(Cohort = unique(tb_data$Cohort)[-1], Effect = cohort_effects)
+ggplot(cohort_df, aes(x = Cohort, y = Effect)) +
+  geom_point(size = 3, color = "green") +
+  geom_line(group = 1, color = "green", linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Cohort Effect on TB Mortality in Sub Saharan Africa", x = "Cohort (Birth Year)", y = "Effect Size",
+       caption = "TB Mortality Sub Saharan Africa(1990-2020)")
+```
+
+## Heatmap of Mortality Trends
+```{r warning=FALSE, message=FALSE}
+ggplot(tb_data, aes(x = Period, y = Age, fill = Mortality_Rate)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  labs(title = "Heatmap of TB Mortality Trends in SSA",
+       x = "Year",
+       y = "Age Group",
+       fill = "Mortality Rate")
+```
+

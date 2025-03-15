@@ -1,0 +1,344 @@
+---
+title: "CLINICAL STUDY OF KIDNEY STONES DISEASE"
+author: "Enock Bereka"
+date: "2025-02-08"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load the required libraries
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(performance)
+library(ggeffects)
+library(sjPlot)
+library(gtsummary)
+library(vip)       
+library(car)
+library(ggcorrplot)
+library(report)
+library(pROC)
+library(naniar)
+```
+
+## Load and inspect the dataset
+```{r warning=FALSE, message=FALSE}
+data <- read_csv("C:/Users/PC/OneDrive/Desktop/Data Science/Datasets/Datasets/kidney-stone-dataset.csv")
+glimpse(data)
+anyNA(data)
+duplicated(data) %>% table()
+```
+
+## Data Preparation
+```{r warning=FALSE, message=FALSE}
+data <- rename(data,
+               "gravity" = gravity,
+               "pH" = ph,
+               "Osmotic.pressure" = osmo,
+               "Conduction.rate" = cond,
+               "Calsium" = calc,
+               "Target" = target)
+```
+
+## Convert outcome variable to factor
+```{r warning=FALSE, message=FALSE}
+data$Target <- as.factor(data$Target)
+```
+
+## Univariate analysis
+## Summary statistics for numeric columns
+```{r warning=FALSE, message=FALSE}
+data %>% select(-1, -8) %>% summary()
+```
+
+## Frequency distribution for numerica columns
+## Theme set
+```{r warning=FALSE, message=FALSE}
+theme_set(theme_minimal()+theme(title = element_text
+                                (face = "bold", 
+                                  colour = "steelblue")))
+```
+
+## Gravity
+## Histogram
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(gravity))+
+  geom_histogram(fill = "purple", color = "red", bins = 15)+
+  ggtitle("Distribution of participants based on Gravity")
+```
+
+## Density Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(gravity))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of participants based on Gravity")
+```
+
+## pH
+## Histogram
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(pH))+
+  geom_histogram(fill = "purple", color = "red", bins = 15)+
+  ggtitle("Distribution of participants based on pH")
+```
+
+## Density Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(pH))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of participants based on pH")
+```
+
+## Osmotic Pressure
+## Histogram
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Osmotic.pressure))+
+  geom_histogram(fill = "purple", color = "red", bins = 15)+
+  ggtitle("Distribution of participants based on Osmotic Pressure")
+```
+
+## Density Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Osmotic.pressure))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of participants based on Osmotic Pressure")
+```
+
+## Conduction Rate
+## Histogram
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Conduction.rate))+
+  geom_histogram(fill = "purple", color = "red", bins = 15)+
+  ggtitle("Distribution of participants based on Conduction Rate")
+```
+
+## Density Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Conduction.rate))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of participants based on Conduction Rate")
+```
+
+## Urea
+## Histogram
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(urea))+
+  geom_histogram(fill = "purple", color = "red", bins = 15)+
+  ggtitle("Distribution of participants based on amount of Urea")
+```
+
+## Density Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(urea))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of participants based on amount of Urea")
+```
+
+## Calcium
+## Histogram
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Calsium))+
+  geom_histogram(fill = "purple", color = "red", bins = 15)+
+  ggtitle("Distribution of participants based on Calsium ions")
+```
+
+## Density Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Calsium))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of participants based on Calsium ions")
+```
+
+## Frequency distribution of the outcome variable
+## Target
+## Bar Chart
+```{r warning=FALSE, message=FALSE}
+table(data$Target)
+ggplot(data, aes(Target, fill = Target))+
+  geom_bar()+
+  ggtitle("Distribution of participants based on Kidney Stones Status")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## The positive and negative participants of kidney stones were almost similar indicating a balanced dataset for clinical study
+
+## Bivariate Analysis
+## Correlation Analysis
+## Relationship between numeric columns
+```{r warning=FALSE, message=FALSE}
+cr <- data %>% select(-1, -8) %>% cor()
+ggcorrplot(cr,title = "Correlation Matrix",lab_col = "black",
+           lab = TRUE, legend.title = "Pearson Correlation",
+           lab_size = 3, ggtheme = theme_classic(),
+           outline.color = "black",
+           colors = c("orange", "green", "blue")) 
+```
+
+## Majority of numeric columns are highly correlated with each other indicating multicollinearity and autocorrelation.
+
+## T-Test
+## Is there a relationship between Calcium and Kidney stones
+```{r warning=FALSE, message=FALSE}
+t.test(Calsium~Target, data = data)
+```
+
+## There is a statistically significant difference in mean of calsium batween both positive and negative cases indicating an association between calsium and kidney stones.
+
+## Visualize the relationship
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Target, Calsium, fill = Target))+
+  geom_boxplot()+
+  ggtitle("Calsium vs Kidney Stones")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## Is there a relationship between Urea and Kidney stones
+```{r warning=FALSE, message=FALSE}
+t.test(urea~Target, data = data)
+```
+
+## True difference in mean of urea between positive and negative cases is not equal to 0 indicating an association between the two.
+
+## Visualize the relationship
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Target, urea, fill = Target))+
+  geom_boxplot()+
+  ggtitle("Urea vs Kidney Stones")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## Is there a relationship between Conduction Rate and Kidney stones
+```{r warning=FALSE, message=FALSE}
+t.test(Conduction.rate~Target, data = data)
+```
+
+## There is no statistically significant difference in means of conduction rate between positive and negative cases indicating minimal association between the two.
+
+
+## Visualize the relationship
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Target, Conduction.rate, fill = Target))+
+  geom_boxplot()+
+  ggtitle("Conduction rate vs Kidney Stones")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## Is there a relationship between Gravity and Kidney stones
+```{r warning=FALSE, message=FALSE}
+t.test(gravity~Target, data = data)
+```
+
+## Ther is a statistically significant difference in means of gravity between the positive and negative cases indicating an association between the two.
+
+## Visualize the relationship
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Target, gravity, fill = Target))+
+  geom_boxplot()+
+  ggtitle("Gravity vs Kidney Stones")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## Is there a relationship between pH and Kidney stones
+```{r warning=FALSE, message=FALSE}
+t.test(pH~Target, data = data)
+```
+
+## There is no statistically significant difference in means of pH between the positive and negative cases indicating minimal association between the two.
+
+## Visualize the relationship
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Target, pH, fill = Target))+
+  geom_boxplot()+
+  ggtitle("pH vs Kidney Stones")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## Is there a relationship between Osmotic Pressure and Kidney stones
+```{r warning=FALSE, message=FALSE}
+t.test(Osmotic.pressure~Target, data = data)
+```
+
+## True difference in means between negative and positive cases is not equal to 0 indicating an association between the two.
+
+## Visualize the relationship
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Target, Osmotic.pressure, fill = Target))+
+  geom_boxplot()+
+  ggtitle("Osmotic pressure vs Kidney Stones")+
+  scale_fill_discrete(name = "Target", labels = c("Negative", "Positive"))
+```
+
+## Multivariate Analysis
+## Implement the logistic regression model
+```{r warning=FALSE, message=FALSE}
+data$...1 <- NULL
+model <- glm(Target~., data = data, family = binomial)
+```
+
+## Check Model Assumptions
+## Goodness of fit
+```{r warning=FALSE, message=FALSE}
+check_predictions(model) %>% plot()
+```
+
+## The models predicted values includes the observed points.
+
+## Outliers
+```{r warning=FALSE, message=FALSE}
+check_outliers(model)
+check_outliers(model) %>% plot()
+```
+
+
+## Homodesdasticity
+```{r warning=FALSE, message=FALSE}
+check_residuals(model)
+check_residuals(model) %>% plot()
+```
+
+## Check the models predicted probabilities
+```{r warning=FALSE, message=FALSE}
+ggeffect(model)
+```
+
+## Visualize the models predicted probabilities
+```{r warning=FALSE, message=FALSE}
+ggeffect(model) %>% plot() %>% sjPlot::plot_grid()
+```
+
+
+## An increase in gravity from around 1-2 leads to higher chances of developing Kidney stones disease.
+## Very low and extreme higher pH is associated with increased chances of developing kidney stones disease.
+## Higher osmotic pressure is associated with increased chances of developing kidney stones disease.
+## Very extreme higher conduction rate is associated with higher chances of developing kidney stones disease.
+## Increased accumulation of urea in the body leads to higher chances of developing kidney stones disease.
+## High accumulation of calcium ions in the body is associated with increased chances of developing Kidney stones disease.
+
+## Check feature importance
+```{r warning=FALSE, message=FALSE}
+car::Anova(model)
+vip(model)
+```
+
+## Calsium ions appears to be the top predictor of kidney stones disease followed by gravity, urea, conduction rate, osmotic pressure and pH appears to be the least predictor of Kidney stones based on my analysis.
+
+## Performance of the model
+```{r warning=FALSE, message=FALSE}
+performance(model)
+```
+
+## The predictors explains a substantial variance of 44.4% in the target variable indicating a better fit
+
+## How well is our model in making predictions
+## ROC Curve
+```{r warning=FALSE, message=FALSE}
+roc(Target~fitted.values(model), data = data, 
+    plot = TRUE, legacy.axes = TRUE, 
+    print.auc = TRUE, ci = TRUE)
+```
+
+## The model has an AUC of 0.877 making it an excellent tool in making predictions.

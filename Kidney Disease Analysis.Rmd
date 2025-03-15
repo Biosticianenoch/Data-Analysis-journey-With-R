@@ -1,0 +1,325 @@
+---
+title: "KIDNEY DISEASE ANALYSIS"
+author: "Enock Bereka"
+date: "2025-02-13"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, message=FALSE}
+## Load the necessary libraries
+library(tidyverse)
+library(performance)
+library(ggeffects)
+library(ggcorrplot)
+library(equatiomatic)
+library(sjPlot)
+library(gtsummary)
+library(report)
+library(vip)
+library(car)
+library(naniar)
+library(gridExtra)
+library(caret)
+
+## Load and inspect the dataset
+data <- read_csv("C:/Users/PC/Downloads/kidney_disease.csv")
+glimpse(data)
+data.frame(colSums(is.na(data)))
+sum(duplicated(data))
+
+## Data preparation
+## Handle missing values by replacing them with the median (for numeric) or mode (for categorical)
+data$rc <- as.factor(data$rc)
+data$rc <- as.numeric(data$rc)
+data <- data %>%
+  mutate(across(where(is.numeric), ~replace_na(., median(., na.rm=TRUE)))) %>%
+  mutate(across(where(is.character), ~replace_na(., as.factor(mode(na.omit(.))))))
+
+## Label encoding
+data <- data %>% mutate_if(is.character, as.factor)
+
+## Rename the variables
+data <- rename(data,
+               "id" = id,
+               "Blood_pressure" = bp,
+               "Specific_graphity" = sg,
+               "Albumin" = al,
+               "Sugar" = su,
+               "Red_blood_cells" = rbc,
+               "Pus_cell" = pc,
+               "pus_cell_clamps" = pcc,
+               "Bacteria" = ba,
+               "Blood_glucose_random" = bgr,
+               "Blood_urea" = bu,
+               "Serum_creatanine" = sc,
+               "Sodium" = sod,
+               "Potassium" = pot,
+               "Hemoglobin" = hemo,
+               "Packed_cell_volume" = pcv,
+               "White_blood_cell_count" = wc,
+               "Red_blood_cell_count" = rc,
+               "Hypertension" = htn,
+               "Diabetes_mellitus" = dm,
+               "Coronary_artery_disease" = cad,
+               "Apetite" = appet,
+               "Pedal_edema" = pe,
+               "Anemia" = ane,
+               "Class" = classification)
+
+## Recode the response variable
+data$Class <- ifelse(data$Class == "ckd", 1, 0)
+data$Class <- as.factor(data$Class)
+
+## Univariate Analysis
+## Summary statistics
+data %>% select(2,3,4,5,6,11,12,14,15,16,17,18,19) %>% summary()
+
+## Frequency Distribution
+## Theme set
+theme_set(theme_classic()+theme(title = element_text
+                                (face = "bold", 
+                                  colour = "steelblue")))
+
+## Age (Histogram)
+p1 <- ggplot(data, aes(x = age)) +
+  geom_histogram(fill = "blue", color = "black", bins = 30, alpha = 0.7) +
+  labs(title = "Age Distribution", x = "Age", y = "Count") +
+  theme_minimal()
+
+## Blood Pressure (Histogram)
+p2 <- ggplot(data, aes(x = Blood_pressure)) +
+  geom_histogram(fill = "red", color = "black", bins = 12, alpha = 0.7) +
+  labs(title = "Blood Pressure Distribution", x = "Blood Pressure", y = "Count") +
+  theme_minimal()
+
+## Specific Gravity (Histogram)
+p3 <- ggplot(data, aes(x = Specific_graphity)) +
+  geom_histogram(fill = "green", color = "black", bins = 5, alpha = 0.7) +
+  labs(title = "Specific Gravity Distribution", x = "Specific Gravity", y = "Count") +
+  theme_minimal()
+
+# Albumin (Histogram)
+p4 <- ggplot(data, aes(x = Albumin)) +
+  geom_histogram(fill = "purple", color = "black", bins = 6, alpha = 0.7) +
+  labs(title = "Albumin Distribution", x = "Albumin", y = "Count") +
+  theme_minimal()
+
+## Sugar (Histogram)
+p5 <- ggplot(data, aes(x = Sugar)) +
+  geom_histogram(fill = "orange", color = "black", bins = 7, alpha = 0.7) +
+  labs(title = "Sugar Distribution", x = "Sugar", y = "Count") +
+  theme_minimal()
+
+## Red Blood Cells (Bar Plot)
+p6 <- ggplot(data, aes(x = Red_blood_cells, fill = Red_blood_cells)) +
+  geom_bar() +
+  labs(title = "Red Blood Cells Count", x = "Red Blood Cells", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Pus Cell (Bar Plot)
+p7 <- ggplot(data, aes(x = Pus_cell, fill = Pus_cell)) +
+  geom_bar() +
+  labs(title = "Pus Cell Count", x = "Pus Cell", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Pus Cell Clumps (Bar Plot)
+p8 <- ggplot(data, aes(x = pus_cell_clamps, fill = pus_cell_clamps)) +
+  geom_bar() +
+  labs(title = "Pus Cell Clumps", x = "Pus Cell Clumps", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Bacteria (Bar Plot)
+p9 <- ggplot(data, aes(x = Bacteria, fill = Bacteria)) +
+  geom_bar() +
+  labs(title = "Bacteria Presence", x = "Bacteria", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Blood Glucose Random (Histogram)
+p10 <- ggplot(data, aes(x = Blood_glucose_random)) +
+  geom_histogram(fill = "cyan", color = "black", bins = 15, alpha = 0.7) +
+  labs(title = "Blood Glucose Random Distribution", x = "Blood Glucose Random", y = "Count") +
+  theme_minimal()
+
+## Blood Urea (Histogram)
+p11 <- ggplot(data, aes(x = Blood_urea)) +
+  geom_histogram(fill = "brown", color = "black", bins = 15, alpha = 0.7) +
+  labs(title = "Blood Urea Distribution", x = "Blood Urea", y = "Count") +
+  theme_minimal()
+
+## Serum Creatinine (Histogram)
+p12 <- ggplot(data, aes(x = Serum_creatanine)) +
+  geom_histogram(fill = "pink", color = "black", bins = 30, alpha = 0.7) +
+  labs(title = "Serum Creatinine Distribution", x = "Serum Creatinine", y = "Count") +
+  theme_minimal()
+
+## Sodium (Histogram)
+p13 <- ggplot(data, aes(x = Sodium)) +
+  geom_histogram(fill = "yellow", color = "black", bins = 30, alpha = 0.7) +
+  labs(title = "Sodium Distribution", x = "Sodium", y = "Count") +
+  theme_minimal()
+
+## Potassium (Histogram)
+p14 <- ggplot(data, aes(x = Potassium)) +
+  geom_histogram(fill = "blue", color = "black", bins = 30, alpha = 0.7) +
+  labs(title = "Potassium Distribution", x = "Potassium", y = "Count") +
+  theme_minimal()
+
+## Hemoglobin (Histogram)
+p15 <- ggplot(data, aes(x = Hemoglobin)) +
+  geom_histogram(fill = "green", color = "black", bins = 30, alpha = 0.7) +
+  labs(title = "Hemoglobin Distribution", x = "Hemoglobin", y = "Count") +
+  theme_minimal()
+
+## Hypertension (Bar Plot)
+p16 <- ggplot(data, aes(x = Hypertension, fill = Hypertension)) +
+  geom_bar() +
+  labs(title = "Hypertension Status", x = "Hypertension", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Diabetes Mellitus (Bar Plot)
+p17 <- ggplot(data, aes(x = Diabetes_mellitus, fill = Diabetes_mellitus)) +
+  geom_bar() +
+  labs(title = "Diabetes Mellitus Status", x = "Diabetes Mellitus", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Coronary Artery Disease (Bar Plot)
+p18 <- ggplot(data, aes(x = Coronary_artery_disease, fill = Coronary_artery_disease)) +
+  geom_bar() +
+  labs(title = "Coronary Artery Disease Status", x = "Coronary Artery Disease", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Appetite (Bar Plot)
+p19 <- ggplot(data, aes(x = Apetite, fill = Apetite)) +
+  geom_bar() +
+  labs(title = "Appetite Status", x = "Appetite", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Pedal Edema (Bar Plot)
+p20 <- ggplot(data, aes(x = Pedal_edema, fill = Pedal_edema)) +
+  geom_bar() +
+  labs(title = "Pedal Edema Status", x = "Pedal Edema", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Anemia (Bar Plot)
+p21 <- ggplot(data, aes(x = Anemia, fill = Anemia)) +
+  geom_bar() +
+  labs(title = "Anemia Status", x = "Anemia", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Class (Bar Plot)
+p22 <- ggplot(data, aes(x = Class, fill = Class)) +
+  geom_bar() +
+  labs(title = "Class Distribution", x = "Class", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## Arrange all plots in grids
+grid.arrange(p1, p2, p3, p4, p5, ncol = 2)
+grid.arrange(p6, p7, p8, p9, p10, ncol = 2)
+grid.arrange(p11, p12, p13, p14, p15, ncol = 2)
+grid.arrange(p16, p17, p18, p19, p20, ncol = 2)
+grid.arrange(p21, p22, ncol = 2)
+
+## Relationship among numeric columns
+## Correlation Analysis
+numeric_vars <- data[, sapply(data, is.numeric)]  # Select only numeric variables
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+ggcorrplot(cor_matrix,title = "Correlation Matrix",lab_col = "black",
+           lab = TRUE, legend.title = "Pearson Correlation",
+           lab_size = 3, ggtheme = theme_classic(),
+           outline.color = "black",
+           colors = c("orange", "green", "blue"))
+
+
+## Relationship between Class and other categorical variables
+## Define categorical variables
+categorical_vars <- c("Red_blood_cells", "Pus_cell", "pus_cell_clamps", "Bacteria",
+                      "Hypertension", "Diabetes_mellitus", "Coronary_artery_disease",
+                      "Apetite", "Pedal_edema", "Anemia")
+
+## Loop through each categorical variable
+for (var in categorical_vars) {
+  cat("Chi-square test between Class and", var, "\n")
+  chisq_test <- chisq.test(table(data[[var]], data$Class))
+  print(chisq_test)
+  
+  # Bar chart visualization
+  plot <- ggplot(data, aes(x = .data[[var]], fill = Class)) +
+    geom_bar(position = "dodge") +
+    labs(title = paste("Class vs", var), x = var, y = "Count") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_fill_brewer(palette = "Set1")
+  
+  print(plot)  # Display the plot
+}
+
+## Relationshi between Class and other numeric variables
+## Define numeric variables
+numeric_vars <- c("age", "Blood_pressure", "Specific_graphity", "Albumin",
+                  "Sugar", "Blood_glucose_random", "Blood_urea", "Serum_creatanine",
+                  "Sodium", "Potassium", "Hemoglobin", "Red_blood_cell_count")
+
+## Loop through each numeric variable
+for (var in numeric_vars) {
+  cat("T-test between Class and", var, "\n")
+  t_test <- t.test(data[[var]] ~ data$Class, var.equal = TRUE)
+  print(t_test)
+  
+ ## Boxplot visualization
+  plot <- ggplot(data, aes(x = Class, y = .data[[var]], fill = Class)) +
+    geom_boxplot() +
+    labs(title = paste("Class vs", var), x = "Class", y = var) +
+    theme_minimal() +
+    scale_fill_brewer(palette = "Set2")
+  
+  print(plot)  # Display the plot
+}
+
+## Multivariate analysis
+library(glmnet)
+x <- model.matrix(Class ~ ., data)[, -1]  # Remove intercept
+y <- data$Class
+
+# Fit Lasso (alpha = 1) or Ridge (alpha = 0)
+cv_model <- cv.glmnet(x, y, family = "binomial", alpha = 1)  # Lasso regression
+best_lambda <- cv_model$lambda.min  # Get optimal lambda
+
+# Refit using the best lambda
+final_model <- glmnet(x, y, family = "binomial", alpha = 1, lambda = best_lambda)
+print(final_model)
+
+## Interpret the Model Coefficients
+coef(final_model)
+
+## Make predictions
+pred_prob <- predict(final_model, newx = x, type = "response")  
+head(pred_prob)  # Show first few predicted probabilities  
+pred_class <- ifelse(pred_prob > 0.5, 1, 0)  
+head(pred_class)  # Show first few predicted classes  
+
+## Evaluate Model Performance
+confusionMatrix(as.factor(pred_class), as.factor(y))
+
+## Produce ROC curve
+library(pROC)
+roc_curve <- roc(y, as.numeric(pred_prob))
+plot(roc_curve, col = "blue", main = "ROC Curve for Lasso Model")
+auc(roc_curve)  # Get AUC value
+
+```
+

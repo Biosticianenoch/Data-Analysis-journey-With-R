@@ -1,0 +1,319 @@
+---
+title: "CLINICAL STUDY OF PROSTATE CANCER"
+author: "Enock Bereka"
+date: "2025-02-10"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load necessary libraries
+```{r warning=FALSE, message=FALSE}
+library(naniar)
+library(tidyverse)
+library(pROC)
+library(performance)
+library(ggeffects)
+library(sjPlot)
+library(vip)
+library(report)
+library(car)
+library(gtsummary)
+library(ggcorrplot)
+```
+
+## Load and inspect the dataset
+```{r warning=FALSE, message=FALSE}
+data <- cardata <- read_csv("C:/Users/PC/OneDrive/Desktop/Data Science/Datasets/Datasets/Prostate_Cancer.csv")
+glimpse(data)
+vis_miss(data)
+sum(duplicated(data))
+unique(data$diagnosis_result)
+```
+
+## Data Preparation
+```{r warning=FALSE, message=FALSE}
+data$diagnosis_result <- ifelse(data$diagnosis_result == "M", 1, 0)
+data$diagnosis_result <- as.factor(data$diagnosis_result)
+```
+
+## Univariate analysis
+## Summary statistics
+```{r warning=FALSE, message=FALSE}
+data %>% select(-1,-2) %>% summary()
+
+## Frequency distributions for numeric variables
+## Theme set
+theme_set(theme_minimal()+theme(title = element_text
+                                (face = "bold", 
+                                  colour = "steelblue")))
+```
+
+```{r warning=FALSE, message=FALSE}
+## Radius
+ggplot(data, aes(x = radius))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Radius")
+```
+
+## Texture
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = texture))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Texture")
+```
+
+
+## Perimeter
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = perimeter))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Perimeter")
+```
+
+## Area
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = area))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Area")
+```
+
+## Smoothness
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = smoothness))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Smoothness")
+```
+
+## Compactness
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = compactness))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Compactness")
+```
+
+## Symmetry
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = symmetry))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Symetry")
+```
+
+## Fractal Dimension
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = fractal_dimension))+
+  geom_density(fill = "purple", color = "red")+
+  ggtitle("Distribution of Subjects based on Fractal Dimension")
+```
+
+## Distribution of the outcome variabe
+```{r warning=FALSE, message=FALSE}
+table(data$diagnosis_result)
+ggplot(data, aes(diagnosis_result, fill = diagnosis_result))+
+  geom_bar()+
+  ggtitle("Distribution of Subjects based on diagnosis results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+glimpse(data)
+```
+
+## There were 62 subjects with prostate cancer(cases) and 38 subjects without prostate cancer(controls)
+
+## Bivariate analysis
+## Correlation Analysis
+```{r warning=FALSE, message=FALSE}
+cr <- data %>% select(-1,-2) %>% cor()
+ggcorrplot(cr,title = "Correlation Matrix",lab_col = "black",
+           lab = TRUE, legend.title = "Pearson Correlation",
+           lab_size = 3, ggtheme = theme_classic(),
+           outline.color = "black",
+           colors = c("orange", "green", "blue"))
+```
+
+## There is a high positive correlation between area and perimeter
+## There is a slighly low positive correlation among the remaining variables.
+
+##T-Test
+## Radius vs Diagnostic results
+```{r warning=FALSE, message=FALSE}
+t.test(radius~diagnosis_result, data = data)
+```
+
+## There is no statistically significant difference in mean of radius of a tumor between positive and negative cases indicating minimal association between the variables.
+
+## Visualize results
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = diagnosis_result, y = radius,
+                 fill = diagnosis_result))+
+  geom_boxplot()+
+  ggtitle("Radius vs Diagnostic results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+```
+
+## Texture vs Diagnostic results
+```{r warning=FALSE, message=FALSE}
+t.test(texture~diagnosis_result, data = data)
+```
+
+## There is no statistically significant difference in mean of textuer of a tumor between positive and negative cases indicating minimal association between the variables.
+
+
+## Visualize results
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = diagnosis_result, y = texture,
+                 fill = diagnosis_result))+
+  geom_boxplot()+
+  ggtitle("Texture vs Diagnostic results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+```
+
+## Perimeter vs Diagnostic results
+```{r warning=FALSE, message=FALSE}
+t.test(perimeter~diagnosis_result, data = data)
+```
+
+## There is a statistically significant difference in mean of perimeter of a tumor between positive and negative cases indicating strong association between the variables.
+
+## Visualize results
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = diagnosis_result, y = perimeter,
+                 fill = diagnosis_result))+
+  geom_boxplot()+
+  ggtitle("Perimeter vs Diagnostic results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+```
+
+
+## Compactness vs Diagnostic results
+```{r warning=FALSE, message=FALSE}
+t.test(compactness~diagnosis_result, data = data)
+```
+
+## There is a statistically significant difference in mean of compactness of a tumor between positive and negative cases indicating strong association between the variables.
+
+## Visualize results
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = diagnosis_result, y = compactness,
+                 fill = diagnosis_result))+
+  geom_boxplot()+
+  ggtitle("Compactness vs Diagnostic results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+```
+
+## Symmetry vs Diagnostic results
+```{r warning=FALSE, message=FALSE}
+t.test(symmetry~diagnosis_result, data = data)
+```
+
+## There is a statistically significant difference in mean of symmetry of a tumor between positive and negative cases indicating strong association between the variables.
+
+## Visualize results
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = diagnosis_result, y = symmetry,
+                 fill = diagnosis_result))+
+  geom_boxplot()+
+  ggtitle("Symmetry vs Diagnostic results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+```
+
+
+## Fractal Dimension vs Diagnostic results
+```{r warning=FALSE, message=FALSE}
+t.test(fractal_dimension~diagnosis_result, data = data)
+```
+
+## There is no statistically significant difference in mean of fractal dimension of a tumor between positive and negative cases indicating minimal association between the variables.
+
+## Visualize results
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x = diagnosis_result, y = fractal_dimension,
+                 fill = diagnosis_result))+
+  geom_boxplot()+
+  ggtitle("Fractal dimension vs Diagnostic results")+
+  scale_fill_discrete(name = "diagnosis_result", label = c("Negative", "Positive"))
+```
+
+## Multivariate Analysis
+```{r warning=FALSE, message=FALSE}
+data$id <- NULL
+model <- glm(diagnosis_result~., data = data, family = binomial)
+```
+
+## Check model assumptions
+## Goodness of fit
+```{r warning=FALSE, message=FALSE}
+check_predictions(model) %>% plot()
+```
+
+## Homoscedasticity
+```{r warning=FALSE, message=FALSE}
+check_residuals(model)
+check_residuals(model) %>% plot()
+```
+
+## Outliers
+```{r warning=FALSE, message=FALSE}
+check_outliers(model)
+check_outliers(model) %>% plot()
+```
+
+## Autocorrelation
+```{r warning=FALSE, message=FALSE}
+check_autocorrelation(model)
+```
+
+## Check the models predicted probabilities
+```{r warning=FALSE, message=FALSE}
+ggeffect(model)
+```
+
+## Visualize the models predicted probabilities
+```{r warning=FALSE, message=FALSE}
+ggeffect(model) %>% plot() %>% sjPlot::plot_grid()
+```
+
+## An increase in radius of a tumor leads to an incease in risk of developing prostate cancer.
+## Higher texture values are associated with malignant tumors.
+## High values of perimeter of tumors are associated with malignant turmors.
+## An increase in area of a turmor leads to development of prostate cancer cell.
+## An increase in smoothness of a tumor leads to a decrease in development of prostate cancer cell.
+## High compactness of tumors is associated with malignancy.
+## Lower symmetry of tumors is associted with malignancy.
+## Higher fractal dimension is associted with malignancy.
+
+## Check for odds ratios
+```{r warning=FALSE, message=FALSE}
+fancy_table <- tbl_regression(
+  model, exponentiate = TRUE,
+  add_pairwise_contrasts = TRUE,
+  contrasts_adjust = "bonferroni",
+  pairwise_reverse = TRUE,
+  pvalue_fun = ~style_pvalue(.x, digits = 3)) %>% 
+  add_significance_stars(hide_p = F, hide_se = T,
+                         hide_ci = F) %>% 
+  bold_p()
+fancy_table
+```
+
+## Feature importance plot
+```{r warning=FALSE, message=FALSE}
+car::Anova(model)
+vip(model)
+```
+
+## Performance of the model
+```{r warning=FALSE, message=FALSE}
+performance(model)
+```
+
+## The model explains a substantial variance of 57.7 percent in the outcome variable indicating a better fit.
+## How good is our model in classification
+```{r warning=FALSE, message=FALSE}
+roc(diagnosis_result~fitted.values(model), data = data,
+    plot = TRUE, legacy.axes = TRUE, 
+    print.auc = TRUE, ci = TRUE)
+```
+
+## The model achieves an AUC of 0.929 making it a valuable tool for classification.

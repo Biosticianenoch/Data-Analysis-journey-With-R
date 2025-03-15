@@ -1,0 +1,98 @@
+---
+title: "KCSE 2024 PERFORMANCE ANALYSIS"
+author: "Enock Bereka"
+date: "2025-01-10"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load necessary library
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(reshape2)
+```
+
+## Prepare the data
+```{r}
+Grade <- c("A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "E")
+Male <- c(1137, 4904, 11117,24716,42159,55100,61679,65290,70887,73501,79306,28221)
+Female <- c(556,2840,8033,18404,33188,44238,50038,53491,58998,79833,72181,20112)
+Total <- c(1693,7744,19150,43120,75347,99338,111717,118781,128885,153334,151487,48333)
+KCSE <- data.frame(Grade, Male, Female, Total)
+KCSE$Grade <- factor(KCSE$Grade, levels = c("A", "A-", "B+", "B", "B-", "C+",
+                                            "C", "C-", "D+", "D", "D-", "E"))
+```
+
+## A table for the KCSE performance 2024
+```{r}
+data.frame(Grade = Grade, Male = Male, Female = Female, Total = Total)
+```
+
+## What is the overall distribution of grades across all students
+```{r}
+ggplot(KCSE, aes(Grade, Total, fill = Grade))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  labs(title = "KCSE 2024 Grade Distribution",
+       y = "Number of Students")
+```
+
+## What is the distribution of Grades across male students
+```{r}
+ggplot(KCSE, aes(Grade,Male, fill = Grade))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  labs(title = "KCSE 2024 Male Grade Distribution",
+       y = "Number of Students")
+```
+
+## What is the distribution of Grades across female students
+```{r}
+ggplot(KCSE, aes(Grade,Female, fill = Grade))+
+  geom_bar(stat = "identity")+
+  labs(title = "KCSE 2024 Female Grade Distribution",
+       y = "Number of Students")
+```
+
+## What is the performance comparison across grades by gender
+```{r}
+KCSE <- data.frame(Grade, Male, Female)
+KCSE$Grade <- factor(KCSE$Grade, levels = c("A", "A-", "B+", "B", "B-", "C+",
+                                            "C", "C-", "D+", "D", "D-", "E"))
+# Reshape the data for grouped bar chart
+KCSE_long <- reshape2::melt(KCSE, id.vars = "Grade", variable.name = "Gender", value.name = "Count")
+
+# Plot the bar chart
+ggplot(KCSE_long, aes(x = Grade, y = Count, fill =Gender))+geom_bar(stat = "identity", position = "dodge")+
+  labs(title = "Gender Distribution by Grade in KCSE 2024",
+    x = "Grade",y = "Number of Students",fill = "Gender") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Gender ditribution across all grades
+```{r}
+# Summarize total by gender
+gender_totals <- data.frame(
+  Gender = c("Male", "Female"),
+  Count = c(sum(Male), sum(Female)))
+
+# Calculate percentages
+gender_totals$Percentage <- (gender_totals$Count / sum(gender_totals$Count)) * 100
+
+# Plot the pie chart
+ggplot(gender_totals, aes(x = "", y = Count, fill = Gender)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Gender Distribution Across All Grades",x = NULL,
+    y = NULL,fill = "Gender") +theme_minimal() +
+  theme(axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank())
+```
+

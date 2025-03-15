@@ -1,0 +1,232 @@
+---
+title: "EMPLOYEE ANALYSIS IN A HUMAN RESOURCE COMPANY"
+author: "Enock Bereka"
+date: "2025-01-08"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, message=TRUE}
+# Load the necessary libraries
+library(tidyverse)
+library(ggcorrplot)
+
+# Load and inspect the dataset
+data <- read_csv("C:/Users/PC/OneDrive/Desktop/Data Science/Datasets/Datasets/HR DATA.csv")
+glimpse(data)
+
+# Data cleaning
+anyNA(data)
+colSums(is.na(data))
+data$education <- data$education %>% replace_na("Unknown")
+median(data$previous_year_rating, na.rm = T)
+data$previous_year_rating <- data$previous_year_rating %>% replace_na(3)
+
+# Encode categorical columns
+categorical_vars <- c("department", "region", "education", "gender",
+                      "recruitment_channel", "no_of_trainings", "awards_won?",
+                      "KPIs_met >80%", "previous_year_rating")
+
+# Convert categorical variables to factors
+data[categorical_vars] <- lapply(data[categorical_vars], as.factor)
+
+# Univariate analysis
+# Descriptive statistics for numeric variables
+numeric_vars <- c("age", "length_of_service", "avg_training_score")
+summary(data[numeric_vars])
+
+
+## How is the age of employees distributed in the organization
+theme_set(theme_classic()+theme(title = element_text
+                           (face = "bold", 
+                             colour = "steelblue")))
+ggplot(data, aes(age))+
+  geom_histogram(bins = 15, fill = "green", color = "black")+
+  labs(title = "Employee Distribution based on Age", x = "Age", y = "Number of Employees")
+
+## How are employees distributed based on Length of services offered
+ggplot(data, aes(length_of_service))+
+  geom_histogram(bins = 15, fill = "green", color = "black")+
+  labs(title = "Employee  Distribution based on Length of service", 
+       x = "Length of service", y = "Number of employees")
+
+## How are employees distributed based on Average training score
+ggplot(data, aes(avg_training_score))+
+  geom_histogram(bins = 15, fill = "green", color = "black")+
+  labs(title = "Employee Distribution based on Average training score", 
+       x = "Average training score", y = "Number of employees")
+
+## What is the distribution of employees across different departments?
+ggplot(data, aes(department, fill = department))+
+  geom_bar()+
+  labs(title = "Frequency distribution among Departments",
+       y = "Number of employees")
+
+## What is the distribution of employees by education level?
+ggplot(data, aes(education, fill = education))+
+  geom_bar()+
+  labs(title = "Distribution of employees by education level",
+       y = "Frequency")
+
+## What is the gender composition across the organization?
+ggplot(data, aes(gender, fill = gender))+
+  geom_bar()+
+  labs(title = "Gender composition across the organization",
+       y = "Frequency")
+
+## How many employees were recruited through different channels?
+ggplot(data, aes(recruitment_channel, fill = recruitment_channel))+
+  geom_bar()+
+  labs(title = "Distribution of employees among Recruitment channels ",
+       y = "Frequency")
+
+## What is the distribution of the number of trainings employees attended?
+ggplot(data, aes(no_of_trainings, fill = no_of_trainings))+
+  geom_bar()+
+  labs(title = "Employee distribution based on Number of trainings ",
+       y = "Number of employees")
+
+##	How do employees vary across Previous year ratings
+ggplot(data, aes(previous_year_rating, fill = previous_year_rating))+
+  geom_bar()+
+  labs(title = "Employee distribution based on Previous year ratings ",
+       y = "Number of employees")
+
+## What is the proportion of employees who met KPIs (>80%) across departments?
+ggplot(data, aes(`KPIs_met >80%`, fill = `KPIs_met >80%`))+
+  geom_bar()+
+  labs(title = "Employee distribution based on KPIs_met >80% ",
+       y = "Number of Employees")
+
+## How are employees distributed based on awards won
+ggplot(data, aes(`awards_won?`, fill = `awards_won?`))+
+  geom_bar()+
+  labs(title = "Employee distribution based on Awards won ",
+       y = "Number of employees")
+## Bivariate analysis
+# Is there a relationship among numeric variables
+cor <- cor(data[numeric_vars])
+ggcorrplot(cor,title = "Correlation Heatmap",lab_col = "black",
+           lab = TRUE, legend.title = "Pearson Correlation",
+           lab_size = 3, ggtheme = theme_classic(),
+           outline.color = "black",
+           colors = c("orange", "green", "blue"))
+# How do average training scores vary by education level?
+ggplot(data, aes(education,avg_training_score, fill = education))+
+  geom_boxplot()+
+  labs(title = "Average training score vs Education",
+       y = "Average training score")
+# How are average training scores distributed across different departments?
+ggplot(data, aes(department,avg_training_score, fill = department))+
+  geom_boxplot()+
+  labs(title = "Distribution of Average training score across departments",
+       y = "Average training score")
+
+# What is the proportion of employees meeting KPIs (>80%) by gender?
+ggplot(data, aes(gender, fill = `KPIs_met >80%`))+
+  geom_bar(position = "dodge")+
+  labs(title = "KPIs_met >80% vs Gender",
+       x = "Gender", y = "Number of employees")
+
+##	Which departments have the highest number of employees winning awards?
+ggplot(data, aes(department, fill = `awards_won?`))+
+  geom_bar(position = "dodge")+
+  labs(title = "Distribution of awards won across departments",
+       y = "Number of employees")
+
+#### Is there any relationship between departments and KPIs_met >80%
+contingency_table <- table(data$`KPIs_met >80%`, data$department)
+print(contingency_table)
+
+#### Perform Chi-square test
+chi_square_test <- chisq.test(contingency_table)
+#### Print the results
+print(chi_square_test)
+#There is a significant association between the two variables
+#indicated by the highes chi-square value and a p-value less than 0.05
+
+#### Is there any relationship between departments and Awards won
+contingency_table <- table(data$`awards_won?`, data$department)
+print(contingency_table)
+
+#### Perform Chi-square test
+chi_square_test <- chisq.test(contingency_table)
+#### Print the results
+print(chi_square_test)
+#There is no association between the two variables
+#indicated by the low chi-square value and a p-value greater than 0.05
+
+#### Is there any relationship between departments and Education levels
+contingency_table <- table(data$education, data$department)
+print(contingency_table)
+
+#### Perform Chi-square test
+chi_square_test <- chisq.test(contingency_table)
+#### Print the results
+print(chi_square_test)
+#There is an association between the two variables
+#indicated by the high chi-square value and a p-value less than 0.05
+
+#### Is there a difference in mean of average training score across
+# different departments
+### ANOVA for 'Average training score' and 'departments' 
+#### Perform ANOVA
+anova_result <- aov(avg_training_score ~ department, data = data)
+
+#### Display ANOVA summary
+summary(anova_result)
+#The p-value associated with department is very small indicating 
+#a strong statistical significance. This suggests that there is 
+#a statistically significant difference in average training score
+#across different departments. Different departments are therefore
+#likely to have different average scores. 
+
+#### Is there a difference in mean of age of employees across
+# different education levels
+### ANOVA for 'age' and 'education' 
+#### Perform ANOVA
+anova_result <- aov(age ~ education, data = data)
+
+#### Display ANOVA summary
+summary(anova_result)
+#The p-value associated with education is very small indicating 
+#a strong statistical significance. This suggests that there is 
+#a statistically significant difference in age of employees
+#across different education levels. Different education levels are therefore
+#likely to have different ages of employees.
+
+#### Is there a difference in mean of length of services offered 
+# between different gender
+# T-test for Gender and Length of services offered
+data$gender <- as.numeric(data$gender)
+t.test(data$length_of_service, data$gender)
+#The p-value is very small indicating a strong statistical significance.
+#This suggests that there is a statistically significant difference in length of 
+#sevices offered between sex groups. Different sex groups are therefore
+#likely to have different length of services offered.
+
+## Is there a difference in mean of average training score across education levels
+# Anova for average training score and education
+anova_results <- aov(avg_training_score~education, data = data)
+summary(anova_results)
+#The p-value associated with education is very small indicating 
+#a strong statistical significance. This suggests that there is 
+#a statistically significant difference in average training score of employees
+#across different education levels. Different education levels are therefore
+#likely to have different average scores of employees of employees.
+
+#### Is there any relationship between gender and KPIs_met >80%
+contingency_table <- table(data$`KPIs_met >80%`, data$gender)
+print(contingency_table)
+
+#### Perform Chi-square test
+chi_square_test <- chisq.test(contingency_table)
+#### Print the results
+print(chi_square_test)
+#There is a significant association between the two variables
+#indicated by the higher chi-square value and a p-value less than 0.05
+```
+

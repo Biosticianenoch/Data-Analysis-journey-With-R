@@ -1,0 +1,344 @@
+---
+title: "HEALTHCARE ANALYSIS"
+author: "Enock Bereka"
+date: "2025-02-06"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load necessary libraries
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)    # For data manipulation and visualization
+library(ggplot2)      # For visualizations
+library(dplyr)        # For data wrangling
+library(ggcorrplot)     # For correlation analysis
+library(caret)        # For machine learning
+library(lubridate)    # For date handling
+library(ggpubr)       # For statistical analysis
+library(cluster)      # For clustering
+library(randomForest) # For machine learning
+library(forecast)     # For time series analysis
+```
+
+## Load and inspect the dataset
+```{r warning=FALSE, message=FALSE}
+healthcare_data <- read_csv("C:/Users/PC/Downloads/healthcare_dataset.csv")
+glimpse(healthcare_data)
+anyNA(healthcare_data)
+duplicated(healthcare_data) %>% table()
+```
+
+## Convert date columns to Date format
+```{r warning=FALSE, message=FALSE}
+healthcare_data$`Date of Admission` <- as.Date(healthcare_data$`Date of Admission`, format="%Y-%m-%d")
+healthcare_data$`Discharge Date` <- as.Date(healthcare_data$`Discharge Date`, format="%Y-%m-%d")
+```
+
+# Handle missing values by replacing them with the median (for numeric) or mode (for categorical)
+```{r warning=FALSE, message=FALSE}
+healthcare_data <- healthcare_data %>%
+  mutate(across(where(is.numeric), ~replace_na(., median(., na.rm=TRUE)))) %>%
+  mutate(across(where(is.factor), ~replace_na(., as.character(mode(na.omit(.))))))
+```
+
+## Remove duplicate rows
+```{r warning=FALSE, message=FALSE}
+healthcare_data <- distinct(healthcare_data)
+```
+
+## Univariate Analysis
+## Summary Statistics for Age, Billing Amound And Room Numbers
+```{r warning=FALSE, message=FALSE}
+healthcare_data %>% select(Age, `Billing Amount`, `Room Number`) %>% summary()
+```
+
+## Majority of the patients were aroung 51 years
+## Malority of the patient incurred around 25554 on medical costs
+## Majority of the patients were in room number 301
+## What is the distribution of patient ages?
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=Age)) + 
+  geom_histogram(fill="green",color = "black", bins=15, alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Age Distribution of Patients")
+```
+
+## What is the distribution of Patients based on Medical bills?
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=`Billing Amount`)) +
+geom_histogram(fill="purple",color = "red", bins=15, alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of Hospital Billing Amounts")
+```
+
+## What is the distribution of Patients based on Room Number?
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=`Room Number`)) +
+  geom_histogram(fill="purple",color = "red", bins=15, alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of Patients based on Room Number")
+```
+
+## What is the distribution of patients based on common medical conditions?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$`Medical Condition`)
+ggplot(healthcare_data, aes(x=`Medical Condition`)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on common medical conditions") +
+  coord_flip()
+```
+
+## Almost all the medical conditions had similar number of patients
+
+## What is the distribution of patients based on Gender?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$Gender)
+ggplot(healthcare_data, aes(x=Gender)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on Gender")
+```
+
+## Male patients were slightly higher compared to female patients
+
+## What is the distribution of patients based on Type of admission?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$`Admission Type`)
+ggplot(healthcare_data, aes(x=`Admission Type`)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on Type of admission")
+```
+
+## Majority of the patients used the Elective admission type.
+
+## What is the distribution of patients based on Blood type?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$`Blood Type`)
+ggplot(healthcare_data, aes(x=`Blood Type`)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on Blood type")
+```
+
+## Majority of the patients had A- blood type
+
+## What is the distribution of patients based on Insurance provider?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$`Insurance Provider`)
+ggplot(healthcare_data, aes(x=`Insurance Provider`)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on Insurance provider")
+```
+
+## Majority of the patients used Cigma insurance provider
+
+## What is the distribution of patients based on type of Medication?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$Medication)
+ggplot(healthcare_data, aes(x=Medication)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on type of Medication")
+```
+
+## Majority of the patients were treated using Lipitor drug
+
+## What is the distribution of patients based on Test Results?
+```{r warning=FALSE, message=FALSE}
+table(healthcare_data$`Test Results`)
+ggplot(healthcare_data, aes(x=`Test Results`)) +
+  geom_bar(fill="green",color = "black", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Distribution of patients based on Test Results")
+```
+
+## The test results for majority of patients was abnormal.
+
+## BIVARIATE ANALYSIS
+## Relationship between Age ,Billing Amount and Room Number
+## Correlation Analysis 
+```{r warning=FALSE, message=FALSE}
+num_data <- healthcare_data %>% select_if(is.numeric)
+cor_matrix <- cor(num_data)
+ggcorrplot(cor_matrix,title = "Correlation Matrix",lab_col = "black",
+           lab = TRUE, legend.title = "Pearson Correlation",
+           lab_size = 3, ggtheme = theme_classic(),
+           outline.color = "black",
+           colors = c("orange", "green", "blue"))
+```
+
+## There is no relationship between Age, Billing Amount and Room Numbers
+
+## ANOVA: Does billing amount vary by medical condition?
+```{r warning=FALSE, message=FALSE}
+anova_result <- aov(`Billing Amount` ~ `Medical Condition`, data=healthcare_data)
+summary(anova_result)
+```
+
+## There is a statistically significant difference in Billing Amount across medical conditions indicating an association between the two.
+
+## Visualize the Anova results
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=`Medical Condition`, y=`Billing Amount`)) +
+  geom_boxplot(fill="orange", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Billing Amount per Medical Condition") +
+  coord_flip()
+```
+
+## Does the length of hospital stay differ based on the type of admission?
+## Calculate Length of Stay
+```{r warning=FALSE, message=FALSE}
+healthcare_data$Length_of_Stay <- as.numeric(healthcare_data$`Discharge Date` - healthcare_data$`Date of Admission`)
+
+## Perform one-way ANOVA
+anova_result2 <- aov(Length_of_Stay ~ `Admission Type`, data=healthcare_data)
+summary(anova_result2)
+```
+
+## Visualize the results
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=`Admission Type`, y=Length_of_Stay, fill=`Admission Type`)) +
+  geom_boxplot() +
+  theme_minimal() +
+  ggtitle("Length of Hospital Stay by Admission Type")
+```
+
+## There is no statistically significant difference in length of stay based on admission types indicating no association between the two.
+
+## Does the test result (normal, abnormal and Inconclusive) affect the billing amount?
+## Perform one-way ANOVA: Billing Amount ~ Test Results
+```{r warning=FALSE, message=FALSE}
+anova_result3 <- aov(`Billing Amount` ~ `Test Results`, data=healthcare_data)
+summary(anova_result3)
+```
+
+## Boxplot visualization
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=`Test Results`, y=`Billing Amount`, fill=`Test Results`)) +
+  geom_boxplot() +
+  theme_minimal() +
+  ggtitle("Billing Amount by Test Results")
+```
+
+## There is no statistically significant difference in Billing Amount across test results indicating no association.
+
+## Does the average patient age differ across different insurance providers?
+# Perform one-way ANOVA
+```{r warning=FALSE, message=FALSE}
+anova_result4 <- aov(Age ~ `Insurance Provider`, data=healthcare_data)
+summary(anova_result4)
+```
+
+## There is no statistically significant difference in Age across the insurance providers indicating no association.
+
+
+## Visualize the distribution
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(x=`Insurance Provider`, y=Age, fill=`Insurance Provider`)) +
+  geom_boxplot() +
+  theme_minimal() +
+  ggtitle("Patient Age by Insurance Provider") +
+  coord_flip()
+```
+
+## T-test: Do men and women have different billing amounts?
+```{r warning=FALSE, message=FALSE}
+t_test_result <- t.test(`Billing Amount` ~ Gender, data=healthcare_data)
+print(t_test_result)
+```
+
+## There is no statistically significant difference in Billing Amount between Male and Female indicating no association.
+
+## Chi-square test: Is Admission Type related to Gender?
+```{r warning=FALSE, message=FALSE}
+chi_sq <- chisq.test(table(healthcare_data$Gender, healthcare_data$`Admission Type`))
+print(chi_sq)
+```
+
+## There is a statistically significant association between Gender and admission type indicated by small significant p-value and higher Chi-square statistic.
+
+## Visualize the result
+```{r warning=FALSE, message=FALSE}
+ggplot(healthcare_data, aes(`Admission Type`, fill = Gender))+
+  geom_bar(position = "dodge")+
+  theme_minimal() +
+  ggtitle("Admission Type vs Gender")
+```
+
+## TIME SERIES ANALYSIS (Forecasting Admissions)
+## Aggregate admissions by month
+```{r warning=FALSE, message=FALSE}
+admissions_ts <- healthcare_data %>%
+  mutate(Admission.Month = floor_date(`Date of Admission`, "month")) %>%
+  group_by(Admission.Month) %>%
+  summarize(Admissions = n())
+
+## Convert to time series object
+ts_data <- ts(admissions_ts$Admissions, start=c(year(min(admissions_ts$Admission.Month))), frequency=12)
+```
+
+## General trend
+```{r warning=FALSE, message=FALSE}
+plot(aggregate(ts_data, FUN = mean), ylab = "Admissions", main = "Monthly Hospital Admissions Over Time")
+```
+
+## There is seasonal fluctuation in monthly admissions of patients.
+
+## Plot time series
+```{r warning=FALSE, message=FALSE}
+autoplot(ts_data) + ggtitle("Monthly Hospital Admissions Over Time")
+```
+
+## Plot a season plot
+```{r warning=FALSE, message=FALSE}
+ggseasonplot(ts_data, main = "Monthly Hospital Admissions Over Time")
+```
+
+## Forecast next 12 months using ARIMA
+```{r warning=FALSE, message=FALSE}
+arima_model <- auto.arima(ts_data)
+forecasted_values <- forecast(arima_model, h=12)
+forecasted_values
+```
+
+## Visualize the forecasts
+```{r warning=FALSE, message=FALSE}
+autoplot(forecasted_values) + ggtitle("Forecasted Admissions for Next 12 Months")
+```
+
+## The forecast indicates that there will be a constant number of admissions in the next 12 months
+
+## COST ANALYSIS
+# Top 5 most expensive medical conditions
+```{r warning=FALSE, message=FALSE}
+top_conditions <- healthcare_data %>%
+  group_by(`Medical Condition`) %>%
+  summarize(Average_Cost = mean(`Billing Amount`, na.rm=TRUE)) %>%
+  arrange(desc(Average_Cost)) %>%
+  head(5)
+print(top_conditions)
+```
+
+## Obesity was the medical condition with the highest medical cost followed by Diabetes, Asthma, Arthritis and then Hypertension
+
+## Average Billing Amount by Insurance Provider
+```{r warning=FALSE, message=FALSE}
+insurance_costs <- healthcare_data %>%
+  group_by(`Insurance Provider`) %>%
+  summarize(Average_Billing = mean(`Billing Amount`, na.rm=TRUE))
+
+ggplot(insurance_costs, aes(x=reorder(`Insurance Provider`, Average_Billing), y=Average_Billing)) +
+  geom_bar(stat="identity", fill="blue", alpha=0.7) +
+  theme_minimal() +
+  ggtitle("Average Billing Amount by Insurance Provider") +
+  coord_flip()
+```
+
+## Almost all patient across different insurance providers were charged the same amount in terms of medical costs.

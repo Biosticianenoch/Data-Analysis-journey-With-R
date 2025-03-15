@@ -1,0 +1,116 @@
+---
+title: "POISSON AND NEGATIVE BINOMIAL REGRESSION MODELS"
+author: "Enock Bereka"
+date: "2025-02-14"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load the required packages
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(MASS)
+```
+
+## Load and inspect the data
+```{r warning=FALSE, message=FALSE}
+data("epil")
+glimpse(epil)
+anyNA(epil)
+```
+
+## Summary of the data
+```{r warning=FALSE, message=FALSE}
+summary(epil)
+```
+
+## Visualize the outcome variable
+## Histogram of seizure counts
+```{r warning=FALSE, message=FALSE}
+ggplot(epil, aes(x = y)) + 
+  geom_histogram(bins = 15, fill = "blue", color = "black") +
+  labs(title = "Distribution of Seizure Counts", x = "Number of Seizures", y = "Frequency") +
+  theme_minimal()
+```
+
+## Fit a Poisson regression model
+```{r warning=FALSE, message=FALSE}
+poisson_model <- glm(y ~ trt + age + lbase + offset(log(period)), 
+                     family = poisson, data = epil)
+```
+
+## View model results
+```{r warning=FALSE, message=FALSE}
+summary(poisson_model)
+```
+
+## Check for overdispersion
+## Compute dispersion ratio
+```{r warning=FALSE, message=FALSE}
+dispersion_ratio <- sum(residuals(poisson_model, type = "pearson")^2) / poisson_model$df.residual
+dispersion_ratio
+```
+
+## The poisson model has a dispersion ratio of 9.7 indicating overdispersion.
+
+## Addressing Overdispersion with Negative Binomial Regression
+## Fit Negative Binomial Model
+```{r warning=FALSE, message=FALSE}
+nb_model <- glm.nb(y ~ trt + age + lbase + offset(log(period)), data = epil)
+```
+
+## Summary of Negative Binomial Model
+```{r warning=FALSE, message=FALSE}
+summary(nb_model)
+```
+## Treatment and lod counts for baseline period are significant in the negaitve binomial model indicating they can be used to predict seizure counts for Epileptics.
+
+## Model comparison
+## Compare AIC values
+```{r warning=FALSE, message=FALSE}
+AIC(poisson_model, nb_model)
+```
+
+## We choose negative binomial model since it has lower AIC compared to poisson model.
+
+## Plot actual vs predicted values
+```{r warning=FALSE, message=FALSE}
+epil$predicted <- predict(nb_model, type = "response")
+
+ggplot(epil, aes(x = predicted, y = y)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Predicted vs. Actual Seizure Counts", x = "Predicted Counts", y = "Actual Counts") +
+  theme_minimal()
+```
+
+## Create new data for prediction
+```{r warning=FALSE, message=FALSE}
+new_data <- data.frame(trt = c(1, 0), age = c(30, 40), lbase = c(2, 3), period = c(10, 10))
+new_data$trt <- factor(new_data$trt, levels = c(1, 0), labels = c("progabide", "placebo"))
+```
+
+## Predict seizure counts
+```{r warning=FALSE, message=FALSE}
+new_data$predicted_seizures <- predict(nb_model, newdata = new_data, type = "response")
+```
+
+## View predictions
+```{r warning=FALSE, message=FALSE}
+new_data
+```
+
+## Checking assumptions
+## Residual Plot
+```{r warning=FALSE, message=FALSE}
+ggplot(epil, aes(x = predicted, y = residuals(poisson_model, type = "pearson"))) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs. Predicted Values", x = "Predicted Counts", y = "Pearson Residuals") +
+  theme_minimal()
+```
+

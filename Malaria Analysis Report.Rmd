@@ -1,0 +1,219 @@
+---
+title: "MALARIA ANALYSIS REPORT"
+author: "Enock Bereka"
+date: "2025-01-26"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load necessary libraries
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(performance)
+library(factoextra)
+library(vip)
+library(sjPlot)
+library(pROC)
+library(ggeffects)
+library(gtsummary)
+library(car)
+library(ggcorrplot)
+library(cluster)
+```
+
+## Load and inspect the dataset
+```{r warning=FALSE, message=FALSE}
+data <- read_csv("C:/Users/PC/OneDrive/Desktop/Data Science/Datasets/Datasets/Mal neg & asymptomatic.csv")
+glimpse(data)
+anyNA(data)
+duplicated(data) %>% table()
+```
+
+## Clean the data: Remove empty columns
+```{r warning=FALSE, message=FALSE}
+data$...4 <- NULL
+data$...6 <- NULL
+data$...8 <- NULL
+```
+
+## Convert Participants to factors
+```{r warning=FALSE, message=FALSE}
+data$Participants <- as.factor(data$Participants)
+date = data
+```
+
+## Univariate Analysis
+## Descriptive Statistics for continous columns
+```{r warning=FALSE, message=FALSE}
+dat <- data %>% select(-1)
+dat %>% summary()
+```
+
+## Frequency Distributions
+```{r warning=FALSE, message=FALSE}
+theme_set(theme_classic()+
+            theme(title = element_text(face = "bold",
+                                       colour = "darkred")))
+```
+
+## Participants
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(Participants))+
+  geom_bar(fill = "green", color = "black")+
+  labs(title = "Distribution of participants")
+```
+
+## Mature neutrophils
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(`Mature (CD11b+ CD62L+ CD182+ CD184-)`))+
+  geom_histogram(aes(y = ..density..),bins = 6, fill = "green", color = "black")+
+  geom_density(color = "red", linewidth = 1)+
+  labs(title = "Distribution of mature neutrophils", x = "Mature neutophils")
+```
+
+## Unconventional neutrophils
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(`Unconventional Aged(CD62L+ CD184+)`))+
+  geom_histogram(aes(y = ..density..), bins = 6, fill = "green", color = "black")+
+  geom_density(color = "red", linewidth = 1)+
+  labs(title = "Distribution of unconventional neutrophils", x = "Unconventional neutophils")
+```
+
+## Aged neutrophils
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(`Aged(CD62L- CD184+)`))+
+  geom_histogram(aes(y = ..density..), bins = 4, fill = "green", color = "black")+
+  geom_density(color = "red", linewidth = 1)+
+  labs(title = "Distribution of aged neutrophils", x = "Aged neutophils")
+```
+
+## Mature inactive neutrophils
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(`Mature Inactive(CD11b- CD62L+ CD182+ CD184-)`))+
+  geom_histogram(aes(y = ..density..), bins = 2,width = 0.5, fill = "green", color = "black")+
+  geom_density(color = "red", linewidth = 1)+
+  labs(title = "Distribution of Mature inactive neutrophils", x = "Mature inactive neutrophils")
+```
+
+## Immature neutrophils
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(`Immature(CD10-)`))+
+  geom_histogram(aes(y = ..density..), bins = 5,width = 0.5, fill = "green", color = "black")+
+  geom_density(color = "red", linewidth = 1)+
+  labs(title = "Distribution of Immature neutrophils", x = "Immature neutrophils")
+```
+
+## Bivariate Analysis
+## Correlation
+## Relationship between Continous variables
+## Correlation Analysis
+```{r warning=FALSE, message=FALSE}
+corr_matrix <- dat %>%
+  cor(use = "pairwise.complete.obs")
+```
+
+## Correlation heatmap
+```{r warning=FALSE, message=FALSE}
+ggcorrplot(corr_matrix, lab = TRUE, title = "Correlation Matrix of Immune Cells")
+```
+
+# Differences in immune profiles across participants groups
+```{r warning=FALSE, message=FALSE}
+data_long <- data %>%
+  pivot_longer(cols = -Participants, names_to = "Immune_Population", values_to = "Value")
+ggplot(data_long, aes(x = Participants, y = Value, fill = Participants)) +
+  geom_boxplot() +
+  facet_wrap(~ Immune_Population, scales = "free") +
+  theme_minimal() +
+  labs(title = "Immune Profiles by Group", x = "Group", y = "Value")
+```
+
+## Multivariate Analysis
+## Clustering Analysis
+## Scale numeric columns for clustering
+```{r warning=FALSE, message=FALSE}
+scaled_data <- data %>%
+  select(where(is.numeric)) %>%
+  scale()
+```
+
+## Perform k-means clustering
+```{r warning=FALSE, message=FALSE}
+set.seed(123) # for reproducibility
+kmeans_result <- kmeans(scaled_data, centers = 3) # Adjust the number of centers as needed
+```
+```{r warning=FALSE, message=FALSE}
+## Add cluster assignments to the original data
+data$Cluster <- as.factor(kmeans_result$cluster)
+```
+
+## Visualize clustering results using PCA
+```{r warning=FALSE, message=FALSE}
+fviz_cluster(kmeans_result, data = scaled_data, geom = "point", stand = FALSE)
+```
+
+## Logistic Regression
+## Rename the columns
+```{r warning=FALSE, message=FALSE}
+date <- rename(date,
+               "Mature" = `Mature (CD11b+ CD62L+ CD182+ CD184-)`,
+               "Unconventional" = `Unconventional Aged(CD62L+ CD184+)`,
+               "Aged" = `Aged(CD62L- CD184+)`,
+               "Mature_inactive" = `Mature Inactive(CD11b- CD62L+ CD182+ CD184-)`,
+               "Immature" = `Immature(CD10-)`)
+date$Participants <- ifelse(date$Participants=="asymptomatic", 0, 1)
+date$Participants <- as.factor(date$Participants)
+```
+
+## Implement the model
+```{r warning=FALSE, message=FALSE}
+model <- glm(Participants~., data = date, family = binomial)
+```
+
+## Check Model assumptions
+```{r warning=FALSE, message=FALSE}
+check_predictions(model) %>% plot()
+check_collinearity(model)
+check_residuals(model)
+```
+
+## Check model Predictions
+```{r warning=FALSE, message=FALSE}
+ggeffect(model)
+```
+
+## Visualize model predictions
+```{r warning=FALSE, message=FALSE}
+ggeffect(model) %>% plot() %>% 
+  sjPlot::plot_grid()
+```
+
+## Display odds ratios
+```{r warning=FALSE, message=FALSE}
+tbl_regression(
+  model, exponentiate = TRUE,
+  add_pairwise_contrasts = TRUE,
+  contrasts_adjust = "bonferroni",
+  pairwise_reverse = FALSE,
+  pvalue_fun = ~style_pvalue(.x, digits = 3)) %>% 
+  add_significance_stars(hide_p = F, hide_se = T,
+                         hide_ci = F) %>% 
+  bold_p()
+```
+
+## Check variable importance
+```{r warning=FALSE, message=FALSE}
+car::Anova(model)
+vip(model)
+```
+
+#Produce ROC curve
+```{r warning=FALSE, message=FALSE}
+roc(Participants~fitted.values(model), data = date,
+    plot = TRUE, legacy.axes = TRUE, 
+    print.auc = TRUE, ci = TRUE)
+```
+

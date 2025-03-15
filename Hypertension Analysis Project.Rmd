@@ -1,0 +1,441 @@
+---
+title: "HYPERTENSION PREVALENCE STUDY"
+author: "Enock Bereka"
+date: "2025-01-30"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load necessary libraries
+```{r warning = FALSE, message=FALSE}
+library(tidyverse)
+library(performance)
+library(ggeffects)
+library(sjPlot)
+library(gtsummary)
+library(vip)
+library(pROC)
+library(car)
+library(ggcorrplot)
+```
+
+## Load and inspect the dataset
+```{r warning = FALSE, message=FALSE}
+data <- read_csv("C:/Users/PC/OneDrive/Desktop/Data Science/Datasets/Datasets/Hypertension_data.csv")
+glimpse(data)
+anyNA(data)
+duplicated(data) %>% table()
+```
+
+## Data Preparation
+## Assign ID to act as a unique identifier
+```{r warning = FALSE, message=FALSE}
+data$id <- seq.int(nrow(data))
+data <- unique(data)
+```
+
+## Convert Categorical variables to factors
+```{r warning = FALSE, message=FALSE}
+data$education <- as.factor(data$education)
+```
+
+## Categorise Age and BMI into groups
+```{r warning = FALSE, message=FALSE}
+data$bmi <- ifelse(data$BMI<18.5, "Underweight",
+                       ifelse(data$BMI>=18.5&data$BMI<25, "Normal Weight",                         ifelse(data$BMI>=25&data$BMI<30, "Overweight",                           ifelse(data$BMI>=30&data$BMI<40, "Obese", "Severely Obese"))))
+
+data$bmi <- factor(data$bmi, levels = c("Underweight", "Normal Weight", "Overweight", 
+"Obese", "Severely Obese"))
+
+data$Age <- ifelse(data$age <= 50, "Middle_age", "Old_age")
+
+data$Hypertension_prevalence <- ifelse(data$prevalentHyp == 0, "Negative", "Positive")
+data$Smoking_status <- ifelse(data$currentSmoker == 1, "Non Smoker", "Smoker")
+```
+
+## Univariate analysis
+## Summary statistics for continous columns
+```{r warning = FALSE, message=FALSE}
+be <- c("age","BMI","heartRate")
+summary(data[be])
+```
+
+## Frequency distributions
+## Continous columns
+## Theme set
+```{r warning = FALSE, message=FALSE}
+theme_set(theme_classic()+theme(title = element_text(face = "bold", colour = "steelblue")))
+```
+
+## Age
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = age))+
+  geom_histogram(bins = 15, fill = "violet", color = "green")+
+  labs(title = "Age Distributions", y = "Frequency")
+
+ggplot(data, aes(x = age))+
+  geom_density(fill = "violet", color = "green")+
+  labs(title = "Age Distributions", y = "Frequency")
+```
+
+## BMI
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = BMI))+
+  geom_histogram(bins = 15, fill = "violet", color = "green")+
+  labs(title = "BMI Distributions", y = "Frequency")
+
+ggplot(data, aes(x = BMI))+
+  geom_density(fill = "violet", color = "green")+
+  labs(title = "BMI Distributions", y = "Frequency")
+```
+
+## Heart Rate
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = heartRate))+
+  geom_histogram(bins = 15, fill = "violet", color = "green")+
+  labs(title = "Heart Rate Distributions", y = "Frequency")
+
+ggplot(data, aes(x = heartRate))+
+  geom_density(fill = "violet", color = "green")+
+  labs(title = "Heart Rate Distributions", y = "Frequency")
+```
+
+## Categorical variables
+## Education
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = education, fill = education))+
+  geom_bar()+
+  labs(title = "Distribution of participants across education",
+       y = "Frequency")
+```
+
+## Hypertension Prevalence
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = Hypertension_prevalence, fill = Hypertension_prevalence))+
+  geom_bar()+
+  labs(title = "Hypertension Prevalence",
+       y = "Frequency")
+```
+
+## Smoking Status
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = Smoking_status, fill = Smoking_status))+
+  geom_bar()+
+  labs(title = "Smoking Status Distribution",
+       y = "Frequency")
+```
+
+## Age group
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = Age, fill = Age))+
+  geom_bar()+
+  labs(title = "Age group Distribution",
+       y = "Frequency")
+```
+## Majority of the participants were middle aged
+## BMI Levels
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = bmi, fill = bmi))+
+  geom_bar()+
+  labs(title = "BMI levels Distribution",
+       y = "Frequency")
+```
+
+## Majority of the participants had normal and overweight
+
+## Bivariate analysis
+## Hypothesis testing
+## Correlations
+```{r warning = FALSE, message=FALSE}
+cor(data[be])
+```
+
+## Visualize the correlations
+```{r warning = FALSE, message=FALSE}
+cr <- cor(data[be])
+ggcorrplot(cr,title = "Correlation Heatmap",lab_col = "black",
+           lab = TRUE, legend.title = "Pearson Correlation",
+           lab_size = 3, ggtheme = theme_classic(),
+           outline.color = "black",
+           colors = c("orange", "green", "blue"))
+```
+
+## There is a positive weak correlation between age and BMI
+## There is no correlation between age and heart rate
+## There is a weak positive correlation between BMI and heart rate
+
+## Chi-square
+## What is the relationship between smoking status and hypertension prevalence
+```{r warning = FALSE, message=FALSE}
+contingency_table <- table(data$Hypertension_prevalence, data$Smoking_status)
+contingency_table 
+chisq_result <- chisq.test(contingency_table)
+print(chisq_result)
+```
+
+## There is an a statistically significant association between hypertension prevalence and smoking status indicated by a lower significant p-value and higher chi-square statistic value.
+
+## Visualize your chisq result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(Smoking_status, fill = Hypertension_prevalence))+
+  geom_bar(position = "dodge")+
+  labs(title = "Hypertension Prevalence based on smoking status",
+       y = "Frequency")
+```
+
+## What is the relationship between education levels and hypertension prevalence
+```{r warning = FALSE, message=FALSE}
+contingency_table <- table(data$Hypertension_prevalence, data$education)
+contingency_table 
+chisq_result <- chisq.test(contingency_table)
+print(chisq_result)
+```
+
+## There is no significant association between hypertension prevalence and education levels indicated by p-value above 0.05
+
+## Visualize your chisq result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(education, fill = Hypertension_prevalence))+
+  geom_bar(position = "dodge")+
+  labs(title = "Hypertension Prevalence based on Education status",
+       y = "Frequency")
+```
+
+## What is the relation between age groups and hypertension prevalence
+```{r warning = FALSE, message=FALSE}
+contingency_table <- table(data$Hypertension_prevalence, data$Age)
+contingency_table 
+chisq_result <- chisq.test(contingency_table)
+print(chisq_result)
+```
+
+## There is a statistically significant association between hypertension prevalence and age groups as shown by a p-value less than 0.05.
+
+## Visualize your chisq result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(Age, fill = Hypertension_prevalence))+
+  geom_bar(position = "dodge")+
+  labs(title = "Hypertension Prevalence based on Age groups",
+       y = "Frequency")
+```
+
+## What is the relationship between BMI levels and hypertension prevalence
+```{r warning = FALSE, message=FALSE}
+contingency_table <- table(data$Hypertension_prevalence, data$bmi)
+contingency_table 
+chisq_result <- chisq.test(contingency_table)
+print(chisq_result)
+```
+
+## There is a statistically significant association between hypertension prevalence and BMI levels indicated by a p-value less than 0.05.
+
+## Visualize your chisq result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(bmi, fill = Hypertension_prevalence))+
+  geom_bar(position = "dodge")+
+  labs(title = "Hypertension Prevalence based on BMI levels",
+       y = "Frequency")
+```
+
+## T-test
+## What is the relationship between Age and Hypertension Prevalence
+```{r warning = FALSE, message=FALSE}
+t.test_result <- t.test(data$age, data$prevalentHyp)
+print(t.test_result)
+```
+
+## True difference in means of age across hypertension status is not equal to zero indicating a significant association.
+
+## Visualize the t.test_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = Hypertension_prevalence, y = age , fill = Hypertension_prevalence))+
+  geom_boxplot()+
+  labs(title = "Hypertension Prevalence based on Age")
+```
+
+## What is the relationship between BMI and Hypertension Prevalence
+```{r warning = FALSE, message=FALSE}
+t.test_result <- t.test(data$BMI, data$prevalentHyp)
+print(t.test_result)
+```
+
+## True difference in means of BMI across hypertension status is not equal to zero indicating a significant association.
+
+## Visualize the t.test_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = Hypertension_prevalence, y = BMI , fill = Hypertension_prevalence))+
+  geom_boxplot()+
+  labs(title = "Hypertension Prevalence based on BMI")
+```
+
+## What is the relationship between Heart Rate and Hypertension Prevalence
+```{r warning = FALSE, message=FALSE}
+t.test_result <- t.test(data$heartRate, data$prevalentHyp)
+print(t.test_result)
+```
+
+## True difference in means of heart rate across hypertension status is not equal to zero indicating a significant association.
+
+## Visualize the t.test_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = Hypertension_prevalence, y = heartRate , fill = Hypertension_prevalence))+
+  geom_boxplot()+
+  labs(title = "Hypertension Prevalence based on Heart Rate")
+```
+
+## ANOVA
+## How does Age vary across BMI levels
+```{r warning = FALSE, message=FALSE}
+anova_result <- aov(age~bmi, data = data)
+summary(anova_result)
+```
+
+## The p-value associated with BMI levels is very small indicating a strong statistical significance. This suggests that there is a statistically significant difference in age across different BMI levels.
+
+## Visualize the anova_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = bmi, y = age, fill = bmi))+
+  geom_boxplot()+
+  labs(title = "Age differences across BMI levels")
+```
+
+## How does Heart rate vary across BMI levels
+```{r warning = FALSE, message=FALSE}
+anova_result <- aov(heartRate~bmi, data = data)
+summary(anova_result)
+```
+
+## The p-value associated with BMI levels is very small indicating a strong statistical significance. This suggests that there is a statistically significant difference in heart rate across different BMI levels.
+
+## Visualize the anova_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = bmi, y = heartRate, fill = bmi))+
+  geom_boxplot()+
+  labs(title = "Heart rate differences across BMI levels")
+```
+
+## How does BMI vary across education status
+```{r warning = FALSE, message=FALSE}
+anova_result <- aov(BMI~education, data = data)
+summary(anova_result)
+```
+
+## The p-value(0.774) is substantially higher than the common significance value of 0.05. This indicates there isnt a statistically significant difference in BMI across education levels. 
+
+## Visualize the anova_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = education, y = BMI, fill = education))+
+  geom_boxplot()+
+  labs(title = "BMI differences across education levels")
+```
+
+## How does Age vary across education status
+```{r warning = FALSE, message=FALSE}
+anova_result <- aov(age~education, data = data)
+summary(anova_result)
+```
+
+## The p-value(0.781) is substantially higher than the common significance value of 0.05. This indicates there isnt a statistically significant difference in Age across education levels.
+
+## Visualize the anova_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = education, y = age, fill = education))+
+  geom_boxplot()+
+  labs(title = "Age differences across education levels")
+```
+
+## How does Heart Rate vary across education status
+```{r warning = FALSE, message=FALSE}
+anova_result <- aov(heartRate~education, data = data)
+summary(anova_result)
+```
+
+## The p-value(0.638) is substantially higher than the common significance value of 0.05. This indicates there isnt a statistically significant difference in BMI across education levels.
+
+## Visualize the anova_result
+```{r warning = FALSE, message=FALSE}
+ggplot(data, aes(x = education, y = heartRate , fill = education))+
+  geom_boxplot()+
+  labs(title = "Heart Rate differences across education levels")
+```
+
+## Multivariate analysis
+## Logistic Regression
+```{r warning = FALSE, message=FALSE}
+original <- subset(data, select = c("education", "age", "BMI", "currentSmoker","prevalentHyp", "heartRate"))
+```
+
+## Set up factors
+```{r warning = FALSE, message=FALSE}
+original$currentSmoker <- as.factor(original$currentSmoker)
+original$prevalentHyp <- as.factor(original$prevalentHyp)
+```
+
+## Implement the logistic regression
+```{r warning = FALSE, message=FALSE}
+model <- glm(prevalentHyp~., data = original, family = "binomial")
+```
+
+## Check model assumptions
+```{r warning = FALSE, message=FALSE}
+check_predictions(model) %>% plot()
+check_outliers(model)
+check_outliers(model) %>% plot()
+check_collinearity(model)
+check_residuals(model)
+check_residuals(model) %>% plot()
+```
+
+
+## Check model predicted probabilities
+```{r warning = FALSE, message=FALSE}
+ggeffect(model)
+```
+
+## Visualize model predictions
+```{r warning = FALSE, message=FALSE}
+ggpredict(model) %>% plot() %>% 
+  sjPlot::plot_grid()
+```
+
+## Hypertension prevalence increases with increase in Age
+## Hypertension prevalence increases with increase in bmi
+## Hypertension prevalence increases with increase in heart rate
+## Smokers are at the high risk of developing hypertension compared to non-smokers.
+## Hypertension prevalence decreases as the education levels increases.
+
+## Check for odds ratios
+```{r warning = FALSE, message=FALSE}
+tbl_regression(
+  model, exponentiate = TRUE,
+  add_pairwise_contrasts = TRUE,
+  contrasts_adjust = "bonferroni",
+  pairwise_reverse = FALSE,
+  pvalue_fun = ~style_pvalue(.x, digits = 3)) %>% add_significance_stars(hide_p = F, hide_se = T,
+                         hide_ci = F) %>% 
+  bold_p()
+```
+
+## For every one unit change in age, there is 1.08 change in odds of developing hypertension.
+## For every one unit change in BMI, there is 1.16 change in odds of developing hypertension.
+## For every one unit change in heart rate, there is 1.03 change in odds of developing hypertension.
+
+## Checking variable importance
+```{r warning = FALSE, message=FALSE}
+car::Anova(model)
+vip(model)
+```
+
+## Based on this study, Age, BMI and Heart rate are the top predictor of hypertension prevalence.
+
+## How accurate is our model in making predictions
+## Produce ROC curve
+```{r warning = FALSE, message=FALSE}
+roc(prevalentHyp~fitted.values(model), data = original,plot = TRUE, legacy.axes = TRUE, 
+print.auc = TRUE, ci = TRUE)
+```
+
+## The model achieved an AUC of 0.762 making it a valuable tool for making predictions.
